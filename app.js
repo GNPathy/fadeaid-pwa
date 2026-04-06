@@ -3,6 +3,7 @@ const S = {
   session: null,        // active session record
   profileId: null,
   counts: {VERBAL:0,VISUAL:0,GESTURAL:0,CORRECT:0,INCORRECT:0},
+  questionNum: 0,
   timerStart: null,
   timerInterval: null,
   wakeLock: null,
@@ -49,12 +50,20 @@ function showToast(msg) {
   clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.add('hidden'),2200);
 }
 
-// ── Band touch setup ──
+// ── Band touch setup ── FIX T1-001: Response band now has top(+)/bottom(-) zones
 function setupBandListeners() {
-  // Response halves
-  document.getElementById('rh-wrong').addEventListener('pointerdown', e=>{ e.preventDefault(); tap('INCORRECT',true); });
-  document.getElementById('rh-correct').addEventListener('pointerdown', e=>{ e.preventDefault(); tap('CORRECT',true); });
-  // Prompt bands
+  // Response halves: top 70% = increment, bottom 30% = decrement
+  ['rh-wrong','rh-correct'].forEach(id => {
+    const el = document.getElementById(id);
+    const type = id==='rh-correct'?'CORRECT':'INCORRECT';
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      const r = el.getBoundingClientRect();
+      const yPct = (e.clientY - r.top) / r.height;
+      tap(type, yPct < 0.7);
+    });
+  });
+  // Prompt bands: left 45% = minus, right 55% = plus
   ['VERBAL','VISUAL','GESTURAL'].forEach(type => {
     const band = document.getElementById('band-'+type.toLowerCase());
     band.addEventListener('pointerdown', e => {
@@ -75,23 +84,21 @@ async function tap(type, isPlus) {
 
   if (isPlus) {
     S.counts[type]++;
-    await db_addEvent({sessionId:S.session.id, eventType:type, timestamp:now});
+    if (type==='CORRECT'||type==='INCORRECT') S.questionNum++;
+    await db_addEvent({sessionId:S.session.id, eventType:type, timestamp:now, questionNumber:S.questionNum});
     setCount(type, S.counts[type]);
+    updateQNum();
     triggerFeedback(type);
   } else {
-    // Undo: find and delete last event of this type
-    if (type==='CORRECT'||type==='INCORRECT') {
-      if (S.counts[type]<=0) return;
-    } else {
-      if (S.counts[type]<=0) return;
-    }
+    if (S.counts[type]<=0) return;
     const events = await db_getEventsForSession(S.session.id);
     const last = [...events].reverse().find(e=>e.eventType===type);
     if (last) {
       await db_deleteEvent(last.id);
       S.counts[type] = Math.max(0, S.counts[type]-1);
+      if ((type==='CORRECT'||type==='INCORRECT') && S.questionNum>0) S.questionNum--;
       setCount(type, S.counts[type]);
-      flashBand('band-'+(type==='CORRECT'?'response':type==='INCORRECT'?'response':type.toLowerCase()), false);
+      updateQNum();
     }
   }
 }
@@ -99,6 +106,11 @@ async function tap(type, isPlus) {
 function setCount(type, val) {
   const ids = {VERBAL:'cnt-verbal',VISUAL:'cnt-visual',GESTURAL:'cnt-gestural',CORRECT:'cnt-correct',INCORRECT:'cnt-incorrect'};
   document.getElementById(ids[type]).textContent = val;
+}
+
+function updateQNum() {
+  const el = document.getElementById('sess-qnum');
+  if (el) el.textContent = 'Q' + S.questionNum;
 }
 
 // ── Feedback ──
@@ -210,11 +222,14 @@ async function confirmStartClass() {
   S.session = await db_getSession(sessionId);
   S.profileId = profile.id;
   S.counts = {VERBAL:0,VISUAL:0,GESTURAL:0,CORRECT:0,INCORRECT:0};
+  S.questionNum = 0;
   Object.keys(S.counts).forEach(k=>setCount(k,0));
 
   document.getElementById('sess-name').textContent = `${profile.name} × ${profile.subject}`;
   document.getElementById('sess-topic').textContent = subtopic;
   document.getElementById('sess-timer').textContent = '00:00';
+  const qel = document.getElementById('sess-qnum');
+  if (qel) qel.textContent = 'Q0';
 
   document.getElementById('idle-view').style.display='none';
   document.getElementById('tracking-view').style.display='flex';
@@ -235,6 +250,7 @@ function openEndClass() {
       <div class="sum-cell"><div class="sum-val">${c.VERBAL+c.VISUAL+c.GESTURAL}</div><div class="sum-lbl">Total Prompts</div></div>
       <div class="sum-cell"><div class="sum-val" style="color:var(--correct)">${c.CORRECT}</div><div class="sum-lbl">Correct</div></div>
       <div class="sum-cell"><div class="sum-val" style="color:var(--wrong)">${c.INCORRECT}</div><div class="sum-lbl">Incorrect</div></div>
+      <div class="sum-cell"><div class="sum-val">${S.questionNum}</div><div class="sum-lbl">Questions</div></div>
     </div>`;
   document.getElementById('ec-notes').value='';
   openModal('modal-end');
@@ -250,7 +266,7 @@ async function confirmEndClass() {
     notes: notes ? (existing ? existing+'\n\n'+notes : notes) : existing
   });
   stopTimer(); releaseWakeLock();
-  S.session=null; S.profileId=null;
+  S.session=null; S.profileId=null; S.questionNum=0;
   document.getElementById('tracking-view').style.display='none';
   document.getElementById('idle-view').style.display='flex';
   closeModal('modal-end');
@@ -440,7 +456,7 @@ async function exportCSV() {
   const sessions=await db_getAllSessions();
   const allEvents=await db_getAllEvents();
   const profiles=await db_getProfiles();
-  const header='Date,Student,Subject,SubTopic,Teacher,Classroom,Duration(min),Verbal,Visual,Gestural,Correct,Incorrect,VerbalGoal,VisualGoal,GesturalGoal,IEPGoal,SessionGoals,Notes\n';
+  const header='Date,Student,Subject,SubTopic,Teacher,Classroom,Duration(min),Verbal,Visual,Gestural,Correct,Incorrect,Questions,VerbalGoal,VisualGoal,GesturalGoal,GoalMet,IEPGoal,SessionGoals,Notes\n';
   const rows=sessions.map(s=>{
     const ev=allEvents.filter(e=>e.sessionId===s.id);
     const c={VERBAL:0,VISUAL:0,GESTURAL:0,CORRECT:0,INCORRECT:0};
@@ -448,13 +464,21 @@ async function exportCSV() {
     const p=profiles.find(x=>x.id===s.profileId)||{};
     const dur=s.endTime?Math.round((s.endTime-s.startTime)/60000):'';
     const esc=v=>`"${String(v||'').replace(/"/g,'""')}"`;
+    const qs=c.CORRECT+c.INCORRECT;
+    let goalMet='—';
+    if(p.verbalTarget||p.visualTarget||p.gesturalTarget){
+      const vOk=!p.verbalTarget||c.VERBAL<=p.verbalTarget;
+      const visOk=!p.visualTarget||c.VISUAL<=p.visualTarget;
+      const gOk=!p.gesturalTarget||c.GESTURAL<=p.gesturalTarget;
+      goalMet=(vOk&&visOk&&gOk)?'Yes':'No';
+    }
     return [
       new Date(s.startTime).toLocaleDateString(),
       esc(s.studentName),esc(s.subject),esc(s.subTopic),
       esc(s.teacherName),esc(s.classroom),dur,
-      c.VERBAL,c.VISUAL,c.GESTURAL,c.CORRECT,c.INCORRECT,
+      c.VERBAL,c.VISUAL,c.GESTURAL,c.CORRECT,c.INCORRECT,qs,
       p.verbalTarget||'',p.visualTarget||'',p.gesturalTarget||'',
-      esc(p.iepGoal),esc(s.sessionGoals),esc(s.notes)
+      goalMet,esc(p.iepGoal),esc(s.sessionGoals),esc(s.notes)
     ].join(',');
   }).join('\n');
   const blob=new Blob([header+rows],{type:'text/csv'});
@@ -592,10 +616,13 @@ async function openProfilesSection() {
     html+=`<div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
       <div><div style="font-weight:600">${p.name} × ${p.subject}</div>
       <div style="font-size:12px;color:var(--dim)">V≤${p.verbalTarget||'?'} Vis≤${p.visualTarget||'?'} G≤${p.gesturalTarget||'?'}</div></div>
-      <button onclick="openProfileModal(${p.id})" style="background:none;border:1px solid var(--border);color:var(--primary);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px">Edit</button>
+      <div style="display:flex;gap:6px">
+        <button onclick="editProfile(${p.id})" style="background:none;border:1px solid var(--border);color:var(--primary);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px">✏️</button>
+        <button onclick="deleteProfile(${p.id})" style="background:none;border:1px solid rgba(244,67,54,.4);color:var(--wrong);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px">🗑</button>
+      </div>
     </div>`;
   });
-  html+=`<button class="btn-p" onclick="openProfileModal(null)">+ New Profile</button>
+  html+=`<button class="btn-p" onclick="newProfile()">+ New Profile</button>
     <button class="btn-s" onclick="closeModal('modal-prof-list')">Close</button>`;
   if (!document.getElementById('modal-prof-list')) {
     const div=document.createElement('div'); div.id='modal-prof-list'; div.className='overlay';
@@ -605,20 +632,53 @@ async function openProfilesSection() {
   document.getElementById('modal-prof-list').classList.remove('hidden');
 }
 
+// FIX T1-003: close profile list before opening edit modal (z-index fix)
+function editProfile(id) {
+  closeModal('modal-prof-list');
+  setTimeout(()=>openProfileModal(id), 150);
+}
+
+function newProfile() {
+  closeModal('modal-prof-list');
+  setTimeout(()=>openProfileModal(null), 150);
+}
+
+// FIX T1-004: delete profile with confirmation
+async function deleteProfile(id) {
+  if (!confirm('Delete this profile? Sessions using it will remain but lose their goal references.')) return;
+  await db_deleteProfile(id);
+  showToast('Profile deleted');
+  openProfilesSection();
+}
+
+// FIX T1-002: handle empty source lists gracefully
 async function openProfileModal(id) {
   const src=cfg('sources',{});
   const students=src.students||[]; const subjects=src.subjects||[];
   const pstu=document.getElementById('pf-student'); const psub=document.getElementById('pf-subject');
-  pstu.innerHTML=students.map(s=>`<option value="${s}">${s}</option>`).join('');
-  psub.innerHTML=subjects.map(s=>`<option value="${s}">${s}</option>`).join('');
+  if (students.length) {
+    pstu.innerHTML=students.map(s=>`<option value="${s}">${s}</option>`).join('');
+  } else {
+    pstu.innerHTML='<option value="">-- Add students in Configure Lists first --</option>';
+  }
+  if (subjects.length) {
+    psub.innerHTML=subjects.map(s=>`<option value="${s}">${s}</option>`).join('');
+  } else {
+    psub.innerHTML='<option value="">-- Add subjects in Configure Lists first --</option>';
+  }
   document.getElementById('pf-id').value=id||'';
   if (id) {
     const p=await db_getProfile(id);
-    pstu.value=p.name; psub.value=p.subject;
-    document.getElementById('pf-verbal').value=p.verbalTarget||5;
-    document.getElementById('pf-visual').value=p.visualTarget||5;
-    document.getElementById('pf-gestural').value=p.gesturalTarget||5;
-    document.getElementById('pf-iep').value=p.iepGoal||'';
+    if (p) {
+      // ensure saved name/subject exist as options even if lists changed
+      if (!students.includes(p.name)) { const o=document.createElement('option'); o.value=p.name; o.textContent=p.name; pstu.prepend(o); }
+      if (!subjects.includes(p.subject)) { const o=document.createElement('option'); o.value=p.subject; o.textContent=p.subject; psub.prepend(o); }
+      pstu.value=p.name; psub.value=p.subject;
+      document.getElementById('pf-verbal').value=p.verbalTarget||5;
+      document.getElementById('pf-visual').value=p.visualTarget||5;
+      document.getElementById('pf-gestural').value=p.gesturalTarget||5;
+      document.getElementById('pf-iep').value=p.iepGoal||'';
+    }
   } else {
     document.getElementById('pf-verbal').value=5;
     document.getElementById('pf-visual').value=5;
@@ -630,9 +690,12 @@ async function openProfileModal(id) {
 
 async function saveProfile() {
   const id=document.getElementById('pf-id').value;
+  const name=document.getElementById('pf-student').value;
+  const subject=document.getElementById('pf-subject').value;
+  if (!name || !subject) { showToast('Student and Subject are required — configure lists first'); return; }
   const profile={
-    name:document.getElementById('pf-student').value,
-    subject:document.getElementById('pf-subject').value,
+    name:name,
+    subject:subject,
     verbalTarget:parseInt(document.getElementById('pf-verbal').value)||5,
     visualTarget:parseInt(document.getElementById('pf-visual').value)||5,
     gesturalTarget:parseInt(document.getElementById('pf-gestural').value)||5,

@@ -116,6 +116,8 @@ select.fc{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
 .empty-text{font-size:16px;font-weight:600;color:var(--text)}
 #toast{position:fixed;bottom:74px;left:50%;transform:translateX(-50%);background:var(--s2);border:1px solid var(--border);color:var(--text);padding:9px 20px;border-radius:20px;font-size:13px;z-index:400;pointer-events:none;transition:opacity .3s;white-space:nowrap}
 #toast.hidden{opacity:0}
+@media(max-width:380px){.band-count{font-size:36px!important}.band-label{font-size:10px}.card-title{font-size:14px}.atbl{font-size:11px}.atbl th,.atbl td{padding:6px 5px}.sheet{padding:18px 14px}body{font-size:14px}}
+@media(min-width:768px){body{font-size:16px}.band-count{font-size:72px}.sheet{max-width:600px}}
 </style>
 </head>
 <body>
@@ -143,6 +145,7 @@ select.fc{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
         </div>
         <div style="display:flex;align-items:center;gap:10px">
           <div id="sess-timer">00:00</div>
+          <div id="sess-qnum" style="font-size:16px;font-weight:700;color:var(--primary)">Q0</div>
           <button id="end-btn" onclick="openEndClass()">■ End</button>
         </div>
       </div>
@@ -151,10 +154,12 @@ select.fc{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
           <div class="resp-half" id="rh-wrong">
             <div class="band-count" id="cnt-incorrect" style="color:var(--wrong)">0</div>
             <div class="band-label" style="color:rgba(244,67,54,.65)">Incorrect</div>
+            <div style="font-size:10px;color:rgba(255,255,255,.15);margin-top:4px">top + / bottom −</div>
           </div>
           <div class="resp-half" id="rh-correct">
             <div class="band-count" id="cnt-correct" style="color:var(--correct)">0</div>
             <div class="band-label" style="color:rgba(76,175,80,.65)">Correct</div>
+            <div style="font-size:10px;color:rgba(255,255,255,.15);margin-top:4px">top + / bottom −</div>
           </div>
         </div>
         <div class="band band-verbal" id="band-verbal">
