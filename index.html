@@ -51,8 +51,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .band-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;pointer-events:none}
 .band-count{font-size:clamp(44px,11vw,76px);font-weight:800;line-height:1;letter-spacing:-2px}
 .band-label{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;margin-top:4px}
-.zh{position:absolute;top:50%;transform:translateY(-50%);font-size:26px;font-weight:700;color:rgba(255,255,255,.07);pointer-events:none}
-.zh-m{left:10px}.zh-p{right:10px}
+.zh{position:absolute;top:50%;transform:translateY(-50%);font-size:28px;font-weight:800;color:rgba(255,255,255,.85);pointer-events:none;text-shadow:0 1px 4px rgba(0,0,0,.5)}
+.zh-m{left:12px}.zh-p{right:12px}
 @keyframes flash{0%,100%{filter:brightness(1)}40%{filter:brightness(2.2)}}
 .flashing{animation:flash .22s ease-out}
 /* Scroll */
@@ -154,12 +154,12 @@ select.fc{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
           <div class="resp-half" id="rh-wrong">
             <div class="band-count" id="cnt-incorrect" style="color:var(--wrong)">0</div>
             <div class="band-label" style="color:rgba(244,67,54,.65)">Incorrect</div>
-            <div style="font-size:10px;color:rgba(255,255,255,.15);margin-top:4px">top + / bottom −</div>
+            <div style="font-size:18px;font-weight:800;color:rgba(255,255,255,.7);margin-top:6px;display:flex;gap:20px"><span>＋</span><span>＿</span></div>
           </div>
           <div class="resp-half" id="rh-correct">
             <div class="band-count" id="cnt-correct" style="color:var(--correct)">0</div>
             <div class="band-label" style="color:rgba(76,175,80,.65)">Correct</div>
-            <div style="font-size:10px;color:rgba(255,255,255,.15);margin-top:4px">top + / bottom −</div>
+            <div style="font-size:18px;font-weight:800;color:rgba(255,255,255,.7);margin-top:6px;display:flex;gap:20px"><span>＋</span><span>＿</span></div>
           </div>
         </div>
         <div class="band band-verbal" id="band-verbal">
@@ -268,6 +268,7 @@ select.fc{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
     <div class="fg"><label class="lbl">IEP Goal — Max Verbal prompts/session</label><input class="fc" id="pf-verbal" type="number" min="0" value="5"></div>
     <div class="fg"><label class="lbl">IEP Goal — Max Visual prompts/session</label><input class="fc" id="pf-visual" type="number" min="0" value="5"></div>
     <div class="fg"><label class="lbl">IEP Goal — Max Gestural prompts/session</label><input class="fc" id="pf-gestural" type="number" min="0" value="5"></div>
+    <div class="fg"><label class="lbl">IEP Goal — Minimum % Correct Answers</label><input class="fc" id="pf-correctpct" type="number" min="0" max="100" value="80" placeholder="e.g. 80"></div>
     <div class="fg"><label class="lbl">IEP Goal Description</label><textarea class="fc" id="pf-iep" placeholder="Describe the IEP goal..."></textarea></div>
     <button class="btn-p" onclick="saveProfile()">Save Profile</button>
     <button class="btn-s" onclick="closeModal('modal-profile')">Cancel</button>

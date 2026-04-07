@@ -354,17 +354,26 @@ async function renderAnalytics() {
       const avgV=(events.filter(e=>e.eventType==='VERBAL').length/n).toFixed(1);
       const avgVis=(events.filter(e=>e.eventType==='VISUAL').length/n).toFixed(1);
       const avgG=(events.filter(e=>e.eventType==='GESTURAL').length/n).toFixed(1);
-      const row=(label,avg,goal,color)=>{
+      const totalC=events.filter(e=>e.eventType==='CORRECT').length;
+      const totalW=events.filter(e=>e.eventType==='INCORRECT').length;
+      const totalQ=totalC+totalW;
+      const avgPct=totalQ>0?Math.round(totalC/totalQ*100):0;
+      const row=(label,avg,goal)=>{
         const over=goal&&parseFloat(avg)>parseFloat(goal);
         return `<tr><td>${label}</td><td class="num">${avg}</td><td class="num">${goal||'—'}</td><td class="num ${over?'over':'ok'}">${goal?(over?'⚠️ Over':'✅ Under'):'—'}</td></tr>`;
       };
+      const rowPct=(label,pct,goal)=>{
+        const met=goal&&pct>=goal;
+        return `<tr><td>${label}</td><td class="num">${pct}%</td><td class="num">${goal?goal+'%':'—'}</td><td class="num ${met?'ok':'over'}">${goal?(met?'✅ Met':'⚠️ Below'):'—'}</td></tr>`;
+      };
       html+=`<div class="sec-title">📋 IEP Goal Comparison — ${sf}</div>
       <div style="padding:0 12px 12px"><table class="atbl">
-        <thead><tr><th>Prompt</th><th class="num">Avg/Session</th><th class="num">IEP Goal</th><th class="num">Status</th></tr></thead>
+        <thead><tr><th>Metric</th><th class="num">Actual</th><th class="num">IEP Goal</th><th class="num">Status</th></tr></thead>
         <tbody>
-          ${row('Verbal',avgV,profile.verbalTarget)}
-          ${row('Visual',avgVis,profile.visualTarget)}
-          ${row('Gestural',avgG,profile.gesturalTarget)}
+          ${row('Verbal (avg/session)',avgV,profile.verbalTarget)}
+          ${row('Visual (avg/session)',avgVis,profile.visualTarget)}
+          ${row('Gestural (avg/session)',avgG,profile.gesturalTarget)}
+          ${rowPct('% Correct',avgPct,profile.correctPctGoal)}
         </tbody>
       </table></div>`;
     }
@@ -456,7 +465,7 @@ async function exportCSV() {
   const sessions=await db_getAllSessions();
   const allEvents=await db_getAllEvents();
   const profiles=await db_getProfiles();
-  const header='Date,Student,Subject,SubTopic,Teacher,Classroom,Duration(min),Verbal,Visual,Gestural,Correct,Incorrect,Questions,VerbalGoal,VisualGoal,GesturalGoal,GoalMet,IEPGoal,SessionGoals,Notes\n';
+  const header='Date,Student,Subject,SubTopic,Teacher,Classroom,Duration(min),Verbal,Visual,Gestural,Correct,Incorrect,Questions,CorrectPct,VerbalGoal,VisualGoal,GesturalGoal,CorrectPctGoal,GoalMet,IEPGoal,SessionGoals,Notes\n';
   const rows=sessions.map(s=>{
     const ev=allEvents.filter(e=>e.sessionId===s.id);
     const c={VERBAL:0,VISUAL:0,GESTURAL:0,CORRECT:0,INCORRECT:0};
@@ -465,19 +474,23 @@ async function exportCSV() {
     const dur=s.endTime?Math.round((s.endTime-s.startTime)/60000):'';
     const esc=v=>`"${String(v||'').replace(/"/g,'""')}"`;
     const qs=c.CORRECT+c.INCORRECT;
+    const total=c.CORRECT+c.INCORRECT;
+    const actualPct=total>0?Math.round(c.CORRECT/total*100):0;
     let goalMet='—';
-    if(p.verbalTarget||p.visualTarget||p.gesturalTarget){
+    if(p.verbalTarget||p.visualTarget||p.gesturalTarget||p.correctPctGoal){
       const vOk=!p.verbalTarget||c.VERBAL<=p.verbalTarget;
       const visOk=!p.visualTarget||c.VISUAL<=p.visualTarget;
       const gOk=!p.gesturalTarget||c.GESTURAL<=p.gesturalTarget;
-      goalMet=(vOk&&visOk&&gOk)?'Yes':'No';
+      const pctOk=!p.correctPctGoal||actualPct>=p.correctPctGoal;
+      goalMet=(vOk&&visOk&&gOk&&pctOk)?'Yes':'No';
     }
     return [
       new Date(s.startTime).toLocaleDateString(),
       esc(s.studentName),esc(s.subject),esc(s.subTopic),
       esc(s.teacherName),esc(s.classroom),dur,
       c.VERBAL,c.VISUAL,c.GESTURAL,c.CORRECT,c.INCORRECT,qs,
-      p.verbalTarget||'',p.visualTarget||'',p.gesturalTarget||'',
+      actualPct+'%',
+      p.verbalTarget||'',p.visualTarget||'',p.gesturalTarget||'',p.correctPctGoal||'',
       goalMet,esc(p.iepGoal),esc(s.sessionGoals),esc(s.notes)
     ].join(',');
   }).join('\n');
@@ -615,7 +628,7 @@ async function openProfilesSection() {
   profiles.forEach(p=>{
     html+=`<div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
       <div><div style="font-weight:600">${p.name} × ${p.subject}</div>
-      <div style="font-size:12px;color:var(--dim)">V≤${p.verbalTarget||'?'} Vis≤${p.visualTarget||'?'} G≤${p.gesturalTarget||'?'}</div></div>
+      <div style="font-size:12px;color:var(--dim)">V≤${p.verbalTarget||'?'} Vis≤${p.visualTarget||'?'} G≤${p.gesturalTarget||'?'} Correct≥${p.correctPctGoal||'?'}%</div></div>
       <div style="display:flex;gap:6px">
         <button onclick="editProfile(${p.id})" style="background:none;border:1px solid var(--border);color:var(--primary);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px">✏️</button>
         <button onclick="deleteProfile(${p.id})" style="background:none;border:1px solid rgba(244,67,54,.4);color:var(--wrong);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px">🗑</button>
@@ -677,12 +690,14 @@ async function openProfileModal(id) {
       document.getElementById('pf-verbal').value=p.verbalTarget||5;
       document.getElementById('pf-visual').value=p.visualTarget||5;
       document.getElementById('pf-gestural').value=p.gesturalTarget||5;
+      document.getElementById('pf-correctpct').value=p.correctPctGoal||80;
       document.getElementById('pf-iep').value=p.iepGoal||'';
     }
   } else {
     document.getElementById('pf-verbal').value=5;
     document.getElementById('pf-visual').value=5;
     document.getElementById('pf-gestural').value=5;
+    document.getElementById('pf-correctpct').value=80;
     document.getElementById('pf-iep').value='';
   }
   openModal('modal-profile');
@@ -699,6 +714,7 @@ async function saveProfile() {
     verbalTarget:parseInt(document.getElementById('pf-verbal').value)||5,
     visualTarget:parseInt(document.getElementById('pf-visual').value)||5,
     gesturalTarget:parseInt(document.getElementById('pf-gestural').value)||5,
+    correctPctGoal:parseInt(document.getElementById('pf-correctpct').value)||80,
     iepGoal:document.getElementById('pf-iep').value.trim()
   };
   if (id) profile.id=parseInt(id);
