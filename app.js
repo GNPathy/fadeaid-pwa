@@ -222,18 +222,20 @@ async function openStartClass() {
   openModal('modal-start');
 }
 
-// A2: Case-insensitive subject match for subtopic chips
-function updateSubChips() {
+// A2: Reliable subject match for subtopic chips
+async function updateSubChips() {
   const sel=document.getElementById('sc-profile');
   const chips=document.getElementById('sc-chips');
   chips.innerHTML='';
   if (!sel.value) return;
-  const opt=sel.options[sel.selectedIndex].textContent; // "Name × Subject"
-  const subject=opt.split('×')[1]?.trim();
-  if (!subject) return;
+  const pId = parseInt(sel.value);
+  if (!pId) return;
+  const p = await db_getProfile(pId);
+  if (!p || !p.subject) return;
+  const subject=p.subject;
   const mappings=cfg('subtopics',{});
   // Case-insensitive lookup across all mapping keys
-  const key=Object.keys(mappings).find(k=>k.trim().toLowerCase()===subject.toLowerCase());
+  const key=Object.keys(mappings).find(k=>k.trim().toLowerCase()===subject.trim().toLowerCase());
   const topics=key?mappings[key]:[];
   if (!topics.length) {
     const hint=document.createElement('span');
@@ -606,7 +608,7 @@ async function exportSessionPDF(sessionId) {
   });
   // Response summary
   y+=10; doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(30,30,30);
-  doc.text(`Correct: ${c.CORRECT}   Incorrect: ${c.INCORRECT}   Total Prompts: ${c.VERBAL+c.VISUAL+c.GESTURAL}`,40,y); y+=20;
+  doc.text(`Questions: ${c.CORRECT+c.INCORRECT}   Correct: ${c.CORRECT}   Incorrect: ${c.INCORRECT}   Total Prompts: ${c.VERBAL+c.VISUAL+c.GESTURAL}`,40,y); y+=20;
   // Notes
   if (s.iepGoalNotes) { doc.setFont('helvetica','bold'); doc.text('IEP Goal:',40,y); doc.setFont('helvetica','normal'); const ln=doc.splitTextToSize(s.iepGoalNotes,W-100); doc.text(ln,130,y); y+=ln.length*14+6; }
   if (s.sessionGoals) { doc.setFont('helvetica','bold'); doc.text('Session Goals:',40,y); doc.setFont('helvetica','normal'); const ln=doc.splitTextToSize(s.sessionGoals,W-110); doc.text(ln,145,y); y+=ln.length*14+6; }
@@ -699,14 +701,16 @@ async function openProfilesSection() {
   document.getElementById('modal-prof-list').classList.remove('hidden');
 }
 
-// A1: increased delay to 300ms so Android modal animation fully completes
+// A1: completely remove modal to prevent persistence behind the new screen
 function editProfile(id) {
-  closeModal('modal-prof-list');
+  const el = document.getElementById('modal-prof-list');
+  if (el) el.remove();
   setTimeout(()=>openProfileModal(id), 300);
 }
 
 function newProfile() {
-  closeModal('modal-prof-list');
+  const el = document.getElementById('modal-prof-list');
+  if (el) el.remove();
   setTimeout(()=>openProfileModal(null), 300);
 }
 
