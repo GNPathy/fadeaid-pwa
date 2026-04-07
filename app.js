@@ -1,9 +1,11 @@
 // ── State ──
 const S = {
   session: null,        // active session record
+  profile: null,        // full profile object for active session
   profileId: null,
   counts: {VERBAL:0,VISUAL:0,GESTURAL:0,CORRECT:0,INCORRECT:0},
-  questionNum: 0,
+  questionNum: 1,       // current question (starts at 1)
+  qPromptCounts: {VERBAL:0,VISUAL:0,GESTURAL:0}, // prompts for current question
   timerStart: null,
   timerInterval: null,
   wakeLock: null,
@@ -83,12 +85,24 @@ async function tap(type, isPlus) {
   S.lastTap[key] = now;
 
   if (isPlus) {
-    S.counts[type]++;
-    if (type==='CORRECT'||type==='INCORRECT') S.questionNum++;
-    await db_addEvent({sessionId:S.session.id, eventType:type, timestamp:now, questionNumber:S.questionNum});
-    setCount(type, S.counts[type]);
-    updateQNum();
-    triggerFeedback(type);
+    if (type==='CORRECT'||type==='INCORRECT') {
+      // Record outcome for current question, then advance to next
+      S.counts[type]++;
+      await db_addEvent({sessionId:S.session.id, eventType:type, timestamp:now, questionNumber:S.questionNum});
+      setCount(type, S.counts[type]);
+      triggerFeedback(type);
+      S.questionNum++;
+      S.qPromptCounts = {VERBAL:0,VISUAL:0,GESTURAL:0};
+      updateQNum();
+    } else {
+      // Prompt — belongs to current question
+      S.counts[type]++;
+      S.qPromptCounts[type]=(S.qPromptCounts[type]||0)+1;
+      await db_addEvent({sessionId:S.session.id, eventType:type, timestamp:now, questionNumber:S.questionNum});
+      setCount(type, S.counts[type]);
+      triggerFeedback(type);
+      checkPerQuestionGoal(type);
+    }
   } else {
     if (S.counts[type]<=0) return;
     const events = await db_getEventsForSession(S.session.id);
@@ -96,7 +110,16 @@ async function tap(type, isPlus) {
     if (last) {
       await db_deleteEvent(last.id);
       S.counts[type] = Math.max(0, S.counts[type]-1);
-      if ((type==='CORRECT'||type==='INCORRECT') && S.questionNum>0) S.questionNum--;
+      if (type==='CORRECT'||type==='INCORRECT') {
+        S.questionNum = Math.max(1, S.questionNum-1);
+        // Restore qPromptCounts from remaining events for current question
+        const remaining = await db_getEventsForSession(S.session.id);
+        S.qPromptCounts = {VERBAL:0,VISUAL:0,GESTURAL:0};
+        remaining.filter(e=>e.questionNumber===S.questionNum && (e.eventType==='VERBAL'||e.eventType==='VISUAL'||e.eventType==='GESTURAL'))
+          .forEach(e=>S.qPromptCounts[e.eventType]=(S.qPromptCounts[e.eventType]||0)+1);
+      } else {
+        S.qPromptCounts[type] = Math.max(0,(S.qPromptCounts[type]||1)-1);
+      }
       setCount(type, S.counts[type]);
       updateQNum();
     }
@@ -110,8 +133,27 @@ function setCount(type, val) {
 
 function updateQNum() {
   const el = document.getElementById('sess-qnum');
-  if (el) el.textContent = 'Q' + S.questionNum;
+  if (!el) return;
+  el.textContent = `Q${S.questionNum}`;
 }
+
+// Check per-question prompt goal and show real-time warning
+function checkPerQuestionGoal(type) {
+  if (!S.profile || S.profile.iepGoalMode !== 'question') return;
+  const goals = {VERBAL:S.profile.verbalTarget, VISUAL:S.profile.visualTarget, GESTURAL:S.profile.gesturalTarget};
+  const goal = goals[type];
+  if (!goal) return;
+  const current = S.qPromptCounts[type]||0;
+  if (current >= goal) {
+    showToast(`⚠️ ${type[0]+type.slice(1).toLowerCase()} prompts at goal limit for Q${S.questionNum}`);
+    // Flash the count red briefly
+    const ids = {VERBAL:'cnt-verbal',VISUAL:'cnt-visual',GESTURAL:'cnt-gestural'};
+    const el = document.getElementById(ids[type]);
+    if (el) { el.style.color='var(--wrong)'; setTimeout(()=>el.style.color='',1200); }
+  }
+}
+
+
 
 // ── Feedback ──
 function triggerFeedback(type) {
@@ -180,6 +222,7 @@ async function openStartClass() {
   openModal('modal-start');
 }
 
+// A2: Case-insensitive subject match for subtopic chips
 function updateSubChips() {
   const sel=document.getElementById('sc-profile');
   const chips=document.getElementById('sc-chips');
@@ -189,7 +232,16 @@ function updateSubChips() {
   const subject=opt.split('×')[1]?.trim();
   if (!subject) return;
   const mappings=cfg('subtopics',{});
-  const topics=(mappings[subject]||[]);
+  // Case-insensitive lookup across all mapping keys
+  const key=Object.keys(mappings).find(k=>k.trim().toLowerCase()===subject.toLowerCase());
+  const topics=key?mappings[key]:[];
+  if (!topics.length) {
+    const hint=document.createElement('span');
+    hint.style.cssText='font-size:12px;color:var(--dim);padding:4px 0;display:block';
+    hint.textContent=`No sub-topics configured for "${subject}" — check Configure Lists`;
+    chips.appendChild(hint);
+    return;
+  }
   topics.forEach(t=>{
     const c=document.createElement('span'); c.className='chip'; c.textContent=t;
     c.onclick=()=>{
@@ -220,9 +272,11 @@ async function confirmStartClass() {
   });
 
   S.session = await db_getSession(sessionId);
+  S.profile = profile;          // store full profile for IEP mode checks
   S.profileId = profile.id;
   S.counts = {VERBAL:0,VISUAL:0,GESTURAL:0,CORRECT:0,INCORRECT:0};
-  S.questionNum = 0;
+  S.questionNum = 1;            // questions start at 1
+  S.qPromptCounts = {VERBAL:0,VISUAL:0,GESTURAL:0};
   Object.keys(S.counts).forEach(k=>setCount(k,0));
 
   document.getElementById('sess-name').textContent = `${profile.name} × ${profile.subject}`;
@@ -266,7 +320,7 @@ async function confirmEndClass() {
     notes: notes ? (existing ? existing+'\n\n'+notes : notes) : existing
   });
   stopTimer(); releaseWakeLock();
-  S.session=null; S.profileId=null; S.questionNum=0;
+  S.session=null; S.profile=null; S.profileId=null; S.questionNum=1; S.qPromptCounts={VERBAL:0,VISUAL:0,GESTURAL:0};
   document.getElementById('tracking-view').style.display='none';
   document.getElementById('idle-view').style.display='flex';
   closeModal('modal-end');
@@ -645,15 +699,15 @@ async function openProfilesSection() {
   document.getElementById('modal-prof-list').classList.remove('hidden');
 }
 
-// FIX T1-003: close profile list before opening edit modal (z-index fix)
+// A1: increased delay to 300ms so Android modal animation fully completes
 function editProfile(id) {
   closeModal('modal-prof-list');
-  setTimeout(()=>openProfileModal(id), 150);
+  setTimeout(()=>openProfileModal(id), 300);
 }
 
 function newProfile() {
   closeModal('modal-prof-list');
-  setTimeout(()=>openProfileModal(null), 150);
+  setTimeout(()=>openProfileModal(null), 300);
 }
 
 // FIX T1-004: delete profile with confirmation
@@ -692,6 +746,10 @@ async function openProfileModal(id) {
       document.getElementById('pf-gestural').value=p.gesturalTarget||5;
       document.getElementById('pf-correctpct').value=p.correctPctGoal||80;
       document.getElementById('pf-iep').value=p.iepGoal||'';
+      // set IEP mode radio
+      const mode = p.iepGoalMode||'session';
+      document.getElementById('pf-mode-session').checked = mode==='session';
+      document.getElementById('pf-mode-question').checked = mode==='question';
     }
   } else {
     document.getElementById('pf-verbal').value=5;
@@ -699,6 +757,8 @@ async function openProfileModal(id) {
     document.getElementById('pf-gestural').value=5;
     document.getElementById('pf-correctpct').value=80;
     document.getElementById('pf-iep').value='';
+    document.getElementById('pf-mode-session').checked=true;
+    document.getElementById('pf-mode-question').checked=false;
   }
   openModal('modal-profile');
 }
@@ -715,6 +775,7 @@ async function saveProfile() {
     visualTarget:parseInt(document.getElementById('pf-visual').value)||5,
     gesturalTarget:parseInt(document.getElementById('pf-gestural').value)||5,
     correctPctGoal:parseInt(document.getElementById('pf-correctpct').value)||80,
+    iepGoalMode: document.getElementById('pf-mode-question').checked ? 'question' : 'session',
     iepGoal:document.getElementById('pf-iep').value.trim()
   };
   if (id) profile.id=parseInt(id);

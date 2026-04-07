@@ -145,7 +145,7 @@ select.fc{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
         </div>
         <div style="display:flex;align-items:center;gap:10px">
           <div id="sess-timer">00:00</div>
-          <div id="sess-qnum" style="font-size:16px;font-weight:700;color:var(--primary)">Q0</div>
+          <div id="sess-qnum" style="background:var(--primary);color:#fff;font-size:13px;font-weight:800;padding:3px 10px;border-radius:12px;letter-spacing:.5px">Q1</div>
           <button id="end-btn" onclick="openEndClass()">■ End</button>
         </div>
       </div>
@@ -269,6 +269,17 @@ select.fc{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
     <div class="fg"><label class="lbl">IEP Goal — Max Visual prompts/session</label><input class="fc" id="pf-visual" type="number" min="0" value="5"></div>
     <div class="fg"><label class="lbl">IEP Goal — Max Gestural prompts/session</label><input class="fc" id="pf-gestural" type="number" min="0" value="5"></div>
     <div class="fg"><label class="lbl">IEP Goal — Minimum % Correct Answers</label><input class="fc" id="pf-correctpct" type="number" min="0" max="100" value="80" placeholder="e.g. 80"></div>
+    <div class="fg"><label class="lbl">Measure IEP prompt goals</label>
+      <div style="display:flex;gap:16px;padding:8px 0">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="radio" name="pf-goalmode" id="pf-mode-session" value="session" checked style="accent-color:var(--primary)">
+          <span>Per Session</span></label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="radio" name="pf-goalmode" id="pf-mode-question" value="question" style="accent-color:var(--primary)">
+          <span>Per Question</span></label>
+      </div>
+      <div style="font-size:11px;color:var(--dim)">Per Session: total prompts across whole class. Per Question: max prompts before each Correct/Incorrect answer.</div>
+    </div>
     <div class="fg"><label class="lbl">IEP Goal Description</label><textarea class="fc" id="pf-iep" placeholder="Describe the IEP goal..."></textarea></div>
     <button class="btn-p" onclick="saveProfile()">Save Profile</button>
     <button class="btn-s" onclick="closeModal('modal-profile')">Cancel</button>
