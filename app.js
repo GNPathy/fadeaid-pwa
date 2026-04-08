@@ -42,8 +42,14 @@ function switchTab(name) {
 }
 
 // ── Modal helpers ──
-function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
-function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+function openModal(id) { 
+  const el = document.getElementById(id);
+  if(el) { el.classList.remove('hidden'); el.style.display = 'flex'; }
+}
+function closeModal(id) { 
+  const el = document.getElementById(id);
+  if(el) { el.classList.add('hidden'); el.style.display = 'none'; }
+}
 
 // ── Toast ──
 let toastTimer;
@@ -132,9 +138,9 @@ function setCount(type, val) {
 }
 
 function updateQNum() {
-  const el = document.getElementById('sess-qnum');
+  const el = document.getElementById('live-question-banner');
   if (!el) return;
-  el.textContent = `Q${S.questionNum}`;
+  el.textContent = `Question ${S.questionNum}`;
 }
 
 // Check per-question prompt goal and show real-time warning
@@ -284,8 +290,8 @@ async function confirmStartClass() {
   document.getElementById('sess-name').textContent = `${profile.name} × ${profile.subject}`;
   document.getElementById('sess-topic').textContent = subtopic;
   document.getElementById('sess-timer').textContent = '00:00';
-  const qel = document.getElementById('sess-qnum');
-  if (qel) qel.textContent = 'Q0';
+  const qel = document.getElementById('live-question-banner');
+  if (qel) qel.textContent = 'Question 1';
 
   document.getElementById('idle-view').style.display='none';
   document.getElementById('tracking-view').style.display='flex';
@@ -345,6 +351,23 @@ async function renderHistory() {
     const dur = s.endTime ? Math.round((s.endTime-s.startTime)/60000) : '—';
     const date = new Date(s.startTime).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
     const card=document.createElement('div'); card.className='card';
+    const byQ = {};
+    events.forEach(e => {
+        const q = e.questionNumber || 1;
+        if (!byQ[q]) byQ[q] = {V:0, Vis:0, G:0, C:0, W:0};
+        if (e.eventType==='VERBAL') byQ[q].V++;
+        else if (e.eventType==='VISUAL') byQ[q].Vis++;
+        else if (e.eventType==='GESTURAL') byQ[q].G++;
+        else if (e.eventType==='CORRECT') byQ[q].C++;
+        else if (e.eventType==='INCORRECT') byQ[q].W++;
+    });
+    let qHtml = `<div style="margin-top:10px; font-size:12px; font-weight:bold; color:var(--text)">Question Breakdown:</div>`;
+    Object.keys(byQ).sort((a,b)=>a-b).forEach(q => {
+        const d = byQ[q];
+        qHtml += `<div style="margin-top:4px; padding-left:8px; border-left:2px solid var(--border); font-size:12px">
+            Q${q}: V:${d.V} · Vis:${d.Vis} · G:${d.G} &rarr; ${d.C>0?'\u2705':'\u274C'}
+        </div>`;
+    });
     card.innerHTML=`
       <div class="card-hdr" onclick="this.nextElementSibling.classList.toggle('open')">
         <div>
@@ -365,7 +388,8 @@ async function renderHistory() {
         ${s.iepGoalNotes?`<div><strong>IEP Goal:</strong> ${s.iepGoalNotes}</div>`:''}
         ${s.sessionGoals?`<div><strong>Session Goals:</strong> ${s.sessionGoals}</div>`:''}
         ${s.notes?`<div><strong>Notes:</strong> ${s.notes}</div>`:''}
-        <button onclick="exportSessionPDF(${s.id})" style="background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;width:fit-content;margin-top:4px">📄 Export PDF</button>
+        ${qHtml}
+        <button onclick="exportSessionPDF(${s.id})" style="background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;width:fit-content;margin-top:12px">📄 Export PDF</button>
       </div>`;
     list.appendChild(card);
   }
@@ -407,12 +431,16 @@ async function renderAnalytics() {
     const profile = (await db_getProfiles()).find(p=>p.name===sf && (!subf||p.subject===subf));
     if (profile) {
       const n=sessions.length;
-      const avgV=(events.filter(e=>e.eventType==='VERBAL').length/n).toFixed(1);
-      const avgVis=(events.filter(e=>e.eventType==='VISUAL').length/n).toFixed(1);
-      const avgG=(events.filter(e=>e.eventType==='GESTURAL').length/n).toFixed(1);
       const totalC=events.filter(e=>e.eventType==='CORRECT').length;
       const totalW=events.filter(e=>e.eventType==='INCORRECT').length;
-      const totalQ=totalC+totalW;
+      const totalQ=totalC+totalW || 1;
+      const div = profile.iepGoalMode === 'question' ? totalQ : n;
+      const divLabel = profile.iepGoalMode === 'question' ? 'avg/question' : 'avg/session';
+      
+      const avgV=(events.filter(e=>e.eventType==='VERBAL').length/div).toFixed(1);
+      const avgVis=(events.filter(e=>e.eventType==='VISUAL').length/div).toFixed(1);
+      const avgG=(events.filter(e=>e.eventType==='GESTURAL').length/div).toFixed(1);
+      
       const avgPct=totalQ>0?Math.round(totalC/totalQ*100):0;
       const row=(label,avg,goal)=>{
         const over=goal&&parseFloat(avg)>parseFloat(goal);
@@ -426,9 +454,9 @@ async function renderAnalytics() {
       <div style="padding:0 12px 12px"><table class="atbl">
         <thead><tr><th>Metric</th><th class="num">Actual</th><th class="num">IEP Goal</th><th class="num">Status</th></tr></thead>
         <tbody>
-          ${row('Verbal (avg/session)',avgV,profile.verbalTarget)}
-          ${row('Visual (avg/session)',avgVis,profile.visualTarget)}
-          ${row('Gestural (avg/session)',avgG,profile.gesturalTarget)}
+          ${row('Verbal ('+divLabel+')',avgV,profile.verbalTarget)}
+          ${row('Visual ('+divLabel+')',avgVis,profile.visualTarget)}
+          ${row('Gestural ('+divLabel+')',avgG,profile.gesturalTarget)}
           ${rowPct('% Correct',avgPct,profile.correctPctGoal)}
         </tbody>
       </table></div>`;
@@ -534,9 +562,28 @@ async function exportCSV() {
     const actualPct=total>0?Math.round(c.CORRECT/total*100):0;
     let goalMet='—';
     if(p.verbalTarget||p.visualTarget||p.gesturalTarget||p.correctPctGoal){
-      const vOk=!p.verbalTarget||c.VERBAL<=p.verbalTarget;
-      const visOk=!p.visualTarget||c.VISUAL<=p.visualTarget;
-      const gOk=!p.gesturalTarget||c.GESTURAL<=p.gesturalTarget;
+      const mode = p.iepGoalMode || 'session';
+      let vMax = 0, visMax = 0, gMax = 0;
+      if (mode === 'question') {
+          const byQ = {};
+          ev.forEach(e => {
+              const q = e.questionNumber||1;
+              if(!byQ[q]) byQ[q]={V:0,Vis:0,G:0};
+              if(e.eventType==='VERBAL') byQ[q].V++;
+              if(e.eventType==='VISUAL') byQ[q].Vis++;
+              if(e.eventType==='GESTURAL') byQ[q].G++;
+          });
+          Object.values(byQ).forEach(d => {
+              vMax = Math.max(vMax, d.V);
+              visMax = Math.max(visMax, d.Vis);
+              gMax = Math.max(gMax, d.G);
+          });
+      } else {
+          vMax = c.VERBAL; visMax = c.VISUAL; gMax = c.GESTURAL;
+      }
+      const vOk=!p.verbalTarget||vMax<=p.verbalTarget;
+      const visOk=!p.visualTarget||visMax<=p.visualTarget;
+      const gOk=!p.gesturalTarget||gMax<=p.gesturalTarget;
       const pctOk=!p.correctPctGoal||actualPct>=p.correctPctGoal;
       goalMet=(vOk&&visOk&&gOk&&pctOk)?'Yes':'No';
     }
@@ -601,11 +648,53 @@ async function exportSessionPDF(sessionId) {
     doc.text(String(cnt),cols[1]+2,y+15);
     doc.text(String(cnt),cols[2]+2,y+15);
     doc.text(goal?String(goal):'—',cols[3]+2,y+15);
-    const over=goal&&cnt>goal;
     doc.setTextColor(over?230:0,over?120:160,over?0:100);
     doc.text(goal?(over?'⚠ Over':'✓ Under'):'—',cols[4]+2,y+15);
     doc.setTextColor(30,30,30); y+=22;
   });
+  
+  // Question Breakdown table
+  y+=10; doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(30,30,30);
+  doc.text('Question Breakdown',40,y); y+=14;
+  doc.setFillColor(26,37,53); doc.rect(36,y,W-72,22,'F');
+  doc.setTextColor(144,164,174); doc.setFontSize(10);
+  ['Question','V','Vis','G','Result'].forEach((h,i)=>doc.text(h,42+(i*90),y+14)); y+=22;
+  
+  const byQ = {};
+  events.forEach(e => {
+      const q = e.questionNumber || 1;
+      if (!byQ[q]) byQ[q] = {V:0, Vis:0, G:0, C:0, W:0};
+      if (e.eventType==='VERBAL') byQ[q].V++;
+      else if (e.eventType==='VISUAL') byQ[q].Vis++;
+      else if (e.eventType==='GESTURAL') byQ[q].G++;
+      else if (e.eventType==='CORRECT') byQ[q].C++;
+      else if (e.eventType==='INCORRECT') byQ[q].W++;
+  });
+  
+  Object.keys(byQ).sort((a,b)=>a-b).forEach((q, i) => {
+      const d = byQ[q];
+      doc.setFillColor(i%2===0?245:255,i%2===0?247:255,i%2===0?250:255);
+      doc.rect(36,y,W-72,22,'F');
+      doc.setTextColor(30,30,30); doc.setFont('helvetica','normal'); doc.setFontSize(11);
+      
+      const vover = profile?.iepGoalMode === 'question' && profile?.verbalTarget && d.V > profile.verbalTarget;
+      const visover = profile?.iepGoalMode === 'question' && profile?.visualTarget && d.Vis > profile.visualTarget;
+      const gover = profile?.iepGoalMode === 'question' && profile?.gesturalTarget && d.G > profile.gesturalTarget;
+
+      doc.text(`Q${q}`, 42, y+15);
+      doc.setTextColor(vover?230:30,vover?120:30,vover?0:30);
+      doc.text(String(d.V), 132, y+15);
+      doc.setTextColor(visover?230:30,visover?120:30,visover?0:30);
+      doc.text(String(d.Vis), 222, y+15);
+      doc.setTextColor(gover?230:30,gover?120:30,gover?0:30);
+      doc.text(String(d.G), 312, y+15);
+      doc.setTextColor(30,30,30);
+      doc.text(d.C>0?'Correct':'Incorrect', 402, y+15);
+      y+=22;
+      
+      if(y > 780) { doc.addPage(); y = 40; }
+  });
+
   // Response summary
   y+=10; doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(30,30,30);
   doc.text(`Questions: ${c.CORRECT+c.INCORRECT}   Correct: ${c.CORRECT}   Incorrect: ${c.INCORRECT}   Total Prompts: ${c.VERBAL+c.VISUAL+c.GESTURAL}`,40,y); y+=20;
@@ -785,7 +874,7 @@ async function saveProfile() {
   if (id) profile.id=parseInt(id);
   await db_saveProfile(profile);
   closeModal('modal-profile'); showToast('✅ Profile saved!');
-  if (document.getElementById('modal-prof-list')) openProfilesSection();
+  openProfilesSection();
 }
 
 async function clearAllData() {
