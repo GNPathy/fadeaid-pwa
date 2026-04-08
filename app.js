@@ -295,6 +295,7 @@ async function confirmStartClass() {
 
   document.getElementById('idle-view').style.display='none';
   document.getElementById('tracking-view').style.display='flex';
+  document.getElementById('bottom-nav').style.display='none';
 
   closeModal('modal-start');
   startTimer();
@@ -331,6 +332,7 @@ async function confirmEndClass() {
   S.session=null; S.profile=null; S.profileId=null; S.questionNum=1; S.qPromptCounts={VERBAL:0,VISUAL:0,GESTURAL:0};
   document.getElementById('tracking-view').style.display='none';
   document.getElementById('idle-view').style.display='flex';
+  document.getElementById('bottom-nav').style.display='flex';
   closeModal('modal-end');
   showToast('✅ Session saved!');
 }
@@ -441,6 +443,17 @@ async function renderAnalytics() {
       const avgVis=(events.filter(e=>e.eventType==='VISUAL').length/div).toFixed(1);
       const avgG=(events.filter(e=>e.eventType==='GESTURAL').length/div).toFixed(1);
       
+      let distSum = 0; let distCount = 0;
+      sessions.forEach(sess => {
+          let lastT = sess.startTime;
+          events.filter(e=>e.sessionId===sess.id).sort((a,b)=>a.timestamp-b.timestamp).forEach(e => {
+              distSum += (e.timestamp - lastT)/1000;
+              distCount++;
+              lastT = e.timestamp;
+          });
+      });
+      const avgD = distCount>0 ? (distSum/distCount).toFixed(1)+' sec' : '—';
+      
       const avgPct=totalQ>0?Math.round(totalC/totalQ*100):0;
       const row=(label,avg,goal)=>{
         const over=goal&&parseFloat(avg)>parseFloat(goal);
@@ -450,6 +463,9 @@ async function renderAnalytics() {
         const met=goal&&pct>=goal;
         return `<tr><td>${label}</td><td class="num">${pct}%</td><td class="num">${goal?goal+'%':'—'}</td><td class="num ${met?'ok':'over'}">${goal?(met?'✅ Met':'⚠️ Below'):'—'}</td></tr>`;
       };
+      const rowInfo=(label,val)=>{
+        return `<tr><td>${label}</td><td class="num" style="color:var(--text);font-weight:bold">${val}</td><td class="num">—</td><td class="num">—</td></tr>`;
+      };
       html+=`<div class="sec-title">📋 IEP Goal Comparison — ${sf}</div>
       <div style="padding:0 12px 12px"><table class="atbl">
         <thead><tr><th>Metric</th><th class="num">Actual</th><th class="num">IEP Goal</th><th class="num">Status</th></tr></thead>
@@ -458,6 +474,7 @@ async function renderAnalytics() {
           ${row('Visual ('+divLabel+')',avgVis,profile.visualTarget)}
           ${row('Gestural ('+divLabel+')',avgG,profile.gesturalTarget)}
           ${rowPct('% Correct',avgPct,profile.correctPctGoal)}
+          ${rowInfo('Avg Distance Between Prompts',avgD)}
         </tbody>
       </table></div>`;
     }
@@ -549,11 +566,18 @@ async function exportCSV() {
   const sessions=await db_getAllSessions();
   const allEvents=await db_getAllEvents();
   const profiles=await db_getProfiles();
-  const header='Date,Student,Subject,SubTopic,Teacher,Classroom,Duration(min),Verbal,Visual,Gestural,Correct,Incorrect,Questions,CorrectPct,VerbalGoal,VisualGoal,GesturalGoal,CorrectPctGoal,GoalMet,IEPGoal,SessionGoals,Notes\n';
+  const header='Date,Student,Subject,SubTopic,Teacher,Classroom,Duration(min),Verbal,Visual,Gestural,Correct,Incorrect,Questions,CorrectPct,AvgBetweenPromptsSec,VerbalGoal,VisualGoal,GesturalGoal,CorrectPctGoal,GoalMet,IEPGoal,SessionGoals,Notes\n';
   const rows=sessions.map(s=>{
-    const ev=allEvents.filter(e=>e.sessionId===s.id);
+    const ev=allEvents.filter(e=>e.sessionId===s.id).sort((a,b)=>a.timestamp-b.timestamp);
     const c={VERBAL:0,VISUAL:0,GESTURAL:0,CORRECT:0,INCORRECT:0};
-    ev.forEach(e=>c[e.eventType]=(c[e.eventType]||0)+1);
+    let lastT=s.startTime; let distSum=0; let distCount=0;
+    ev.forEach(e=>{
+        c[e.eventType]=(c[e.eventType]||0)+1;
+        distSum+=(e.timestamp-lastT)/1000;
+        distCount++;
+        lastT=e.timestamp;
+    });
+    const avgDist = distCount>0 ? +(distSum/distCount).toFixed(1) : '';
     const p=profiles.find(x=>x.id===s.profileId)||{};
     const dur=s.endTime?Math.round((s.endTime-s.startTime)/60000):'';
     const esc=v=>`"${String(v||'').replace(/"/g,'""')}"`;
@@ -592,14 +616,19 @@ async function exportCSV() {
       esc(s.studentName),esc(s.subject),esc(s.subTopic),
       esc(s.teacherName),esc(s.classroom),dur,
       c.VERBAL,c.VISUAL,c.GESTURAL,c.CORRECT,c.INCORRECT,qs,
-      actualPct+'%',
+      actualPct+'%',avgDist,
       p.verbalTarget||'',p.visualTarget||'',p.gesturalTarget||'',p.correctPctGoal||'',
       goalMet,esc(p.iepGoal),esc(s.sessionGoals),esc(s.notes)
     ].join(',');
   }).join('\n');
   const blob=new Blob([header+rows],{type:'text/csv'});
+  const filename = `fadeaid-analytics-${new Date().toISOString().slice(0,10)}.csv`;
+  const file = new File([blob], filename, {type: 'text/csv'});
+  if (navigator.share && navigator.canShare && navigator.canShare({files: [file]})) {
+      try { await navigator.share({files: [file], title: 'FadeAid CSV Analytics'}); return; } catch(e){}
+  }
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download=`fadeaid-${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  a.download=filename; a.click();
 }
 
 // ── PDF Export (single session) ──
@@ -702,7 +731,47 @@ async function exportSessionPDF(sessionId) {
   if (s.iepGoalNotes) { doc.setFont('helvetica','bold'); doc.text('IEP Goal:',40,y); doc.setFont('helvetica','normal'); const ln=doc.splitTextToSize(s.iepGoalNotes,W-100); doc.text(ln,130,y); y+=ln.length*14+6; }
   if (s.sessionGoals) { doc.setFont('helvetica','bold'); doc.text('Session Goals:',40,y); doc.setFont('helvetica','normal'); const ln=doc.splitTextToSize(s.sessionGoals,W-110); doc.text(ln,145,y); y+=ln.length*14+6; }
   if (s.notes) { doc.setFont('helvetica','bold'); doc.text('Notes:',40,y); doc.setFont('helvetica','normal'); const ln=doc.splitTextToSize(s.notes,W-90); doc.text(ln,100,y); y+=ln.length*14+6; }
-  doc.save(`fadeaid-${s.studentName.replace(/\s/g,'-')}-${new Date(s.startTime).toISOString().slice(0,10)}.pdf`);
+  
+  // Event Log table
+  if(y > doc.internal.pageSize.getHeight() - 100) { doc.addPage(); y = 40; } else { y+=30; }
+  doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.setTextColor(30,30,30);
+  doc.text('Chronological Event Log',40,y); y+=14;
+  doc.setFillColor(26,37,53); doc.rect(36,y,W-72,22,'F');
+  doc.setTextColor(144,164,174); doc.setFontSize(10);
+  ['Question','Time (hh:mm:ss)','Event Type','Distance (sec)'].forEach((h,i)=>doc.text(h,42+(i*120),y+14)); y+=22;
+  
+  let lastT = s.startTime;
+  const sorted = events.slice().sort((a,b)=>a.timestamp-b.timestamp);
+  sorted.forEach((e, i) => {
+      doc.setFillColor(i%2===0?245:255,i%2===0?247:255,i%2===0?250:255);
+      doc.rect(36,y,W-72,22,'F');
+      doc.setTextColor(30,30,30); doc.setFont('helvetica','normal'); doc.setFontSize(11);
+      
+      const qText = `Q${e.questionNumber||1}`;
+      const d = new Date(e.timestamp);
+      const hhmmss = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+      const dist = ((e.timestamp - lastT)/1000).toFixed(1) + 's';
+      lastT = e.timestamp;
+      
+      doc.text(qText, 42, y+15);
+      doc.text(hhmmss, 162, y+15);
+      doc.text(e.eventType, 282, y+15);
+      doc.text(dist, 402, y+15);
+      
+      y+=22;
+      if(y > 780) { doc.addPage(); y = 40; }
+  });
+
+  const filename = `fadeaid-${s.studentName.replace(/\s/g,'-')}-${new Date(s.startTime).toISOString().slice(0,10)}.pdf`;
+  const blob = doc.output('blob');
+  if (navigator.share && navigator.canShare) {
+      const file = new File([blob], filename, {type:'application/pdf'});
+      if (navigator.canShare({files:[file]})) {
+          try { await navigator.share({files:[file], title:'Session Report'}); return; } catch(err){}
+      }
+  }
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
 }
 
 // ── Settings ──
@@ -787,7 +856,7 @@ async function openProfilesSection() {
     div.innerHTML=`<div class="sheet" id="prof-list-sheet"></div>`; document.body.appendChild(div);
   }
   document.getElementById('prof-list-sheet').innerHTML=html;
-  document.getElementById('modal-prof-list').classList.remove('hidden');
+  openModal('modal-prof-list');
 }
 
 // A1: completely remove modal to prevent persistence behind the new screen
