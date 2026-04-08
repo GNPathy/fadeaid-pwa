@@ -701,6 +701,7 @@ async function exportSessionPDF(sessionId) {
     doc.text(String(cnt),cols[1]+2,y+15);
     doc.text(String(cnt),cols[2]+2,y+15);
     doc.text(goal?String(goal):'—',cols[3]+2,y+15);
+    const over = goal && cnt > goal;
     doc.setTextColor(over?230:0,over?120:160,over?0:100);
     doc.text(goal?(over?'⚠ Over':'✓ Under'):'—',cols[4]+2,y+15);
     doc.setTextColor(30,30,30); y+=22;
