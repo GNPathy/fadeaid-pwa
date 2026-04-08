@@ -643,8 +643,13 @@ async function exportCSV() {
   const filename = `fadeaid-analytics-${new Date().toISOString().slice(0,10)}.csv`;
   const file = new File([blob], filename, {type: 'text/csv'});
   if (navigator.share && navigator.canShare && navigator.canShare({files: [file]})) {
-      navigator.share({files: [file], title: 'FadeAid CSV Analytics'}).catch(e=>{});
-      return;
+      try {
+          await navigator.share({files: [file], title: 'FadeAid CSV Analytics'});
+          return;
+      } catch (err) {
+          if (err.name === 'AbortError') return; // User cancelled share sheet
+          console.log('Share blocked/failed, falling back to download:', err);
+      }
   }
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
   a.download=filename; document.body.appendChild(a); a.click(); document.body.removeChild(a);
@@ -786,8 +791,13 @@ async function exportSessionPDF(sessionId) {
   if (navigator.share && navigator.canShare) {
       const file = new File([blob], filename, {type:'application/pdf'});
       if (navigator.canShare({files:[file]})) {
-          navigator.share({files:[file], title:'Session Report'}).catch(err=>{});
-          return;
+          try {
+              await navigator.share({files:[file], title:'Session Report'});
+              return;
+          } catch (err) {
+              if (err.name === 'AbortError') return; // User cancelled share sheet
+              console.log('Share blocked/failed, falling back to doc.save:', err);
+          }
       }
   }
   doc.save(filename);
