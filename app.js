@@ -643,10 +643,11 @@ async function exportCSV() {
   const filename = `fadeaid-analytics-${new Date().toISOString().slice(0,10)}.csv`;
   const file = new File([blob], filename, {type: 'text/csv'});
   if (navigator.share && navigator.canShare && navigator.canShare({files: [file]})) {
-      try { await navigator.share({files: [file], title: 'FadeAid CSV Analytics'}); return; } catch(e){}
+      navigator.share({files: [file], title: 'FadeAid CSV Analytics'}).catch(e=>{});
+      return;
   }
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download=filename; a.click();
+  a.download=filename; document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 
 // ── PDF Export (single session) ──
@@ -785,14 +786,11 @@ async function exportSessionPDF(sessionId) {
   if (navigator.share && navigator.canShare) {
       const file = new File([blob], filename, {type:'application/pdf'});
       if (navigator.canShare({files:[file]})) {
-          try { await navigator.share({files:[file], title:'Session Report'}); return; } catch(err){}
+          navigator.share({files:[file], title:'Session Report'}).catch(err=>{});
+          return;
       }
   }
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); 
-  a.href = url; 
-  a.download = filename; 
-  a.click();
+  doc.save(filename);
 }
 
 // ── Settings ──
