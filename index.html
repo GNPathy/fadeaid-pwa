@@ -13,7 +13,7 @@
 <style>
 :root{--bg:#121212;--surface:#1E1E1E;--s2:#2C2C2C;--primary:#81D4FA;--correct:#4CAF50;--wrong:#F44336;--verbal:#2196F3;--visual:#9C27B0;--gestural:#009688;--text:#FFFFFF;--dim:#B0BEC5;--border:#333333;--ff:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--ff)}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--ff);font-size:calc(16px * var(--fscale, 1))}
 #app{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
 .tab-content{flex:1;overflow:hidden;display:none;flex-direction:column}
 .tab-content.active{display:flex}
@@ -22,8 +22,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .nav-btn.active{color:var(--primary)}
 .nav-btn svg{width:22px;height:22px;stroke-width:1.8;fill:none;stroke:currentColor}
 #app-header{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;min-height:52px;flex-shrink:0}
-.hdr-title{font-size:17px;font-weight:700;color:var(--primary)}
-.hdr-sub{font-size:11px;color:var(--dim);margin-top:1px}
+.hdr-title{font-size:calc(17px * var(--fscale, 1));font-weight:700;color:var(--primary)}
+.hdr-sub{font-size:calc(11px * var(--fscale, 1));color:var(--dim);margin-top:1px}
 /* Idle */
 #idle-view{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:40px 20px;margin-bottom:60px}
 .app-logo{width:88px;height:88px;background:linear-gradient(135deg,var(--primary),#0288D1);border-radius:22px;display:flex;align-items:center;justify-content:center;font-size:40px;box-shadow:0 8px 32px rgba(79,195,247,.3)}
@@ -32,8 +32,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 /* Tracking */
 #tracking-view{display:none;flex:1;flex-direction:column;overflow:hidden}
 #session-header{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 14px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
-.sess-name{font-size:14px;font-weight:700;color:var(--primary)}
-.sess-topic{font-size:11px;color:var(--dim)}
+.sess-name{font-size:calc(14px * var(--fscale, 1));font-weight:700;color:var(--primary)}
+.sess-topic{font-size:calc(11px * var(--fscale, 1));color:var(--dim)}
 #sess-timer{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
 #end-btn{background:var(--wrong);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation}
 /* Bands */
@@ -53,7 +53,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .band-plus{position:absolute;right:0;top:0;bottom:0;width:55%}
 .band-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;pointer-events:none}
 .band-count{font-size:clamp(44px,11vw,76px);font-weight:800;line-height:1;letter-spacing:-2px}
-.band-label{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px}
+.band-label{font-size:calc(14px * var(--fscale, 1));font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px}
 .zh{position:absolute;top:50%;transform:translateY(-50%);font-size:36px;font-weight:400;pointer-events:none}
 .zh-m{left:20px}.zh-p{right:20px}
 @keyframes flash{0%,100%{filter:brightness(1)}40%{filter:brightness(2.2)}}
@@ -62,14 +62,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;margin-bottom:60px}
 /* Filter bar */
 .filter-bar{display:flex;gap:8px;padding:10px 12px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
-.flt-sel{flex:1;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 10px;font-size:13px;font-family:var(--ff)}
+.flt-sel{flex:1;background:var(--s2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 10px;font-size:calc(13px * var(--fscale, 1));font-family:var(--ff)}
 /* Cards */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin:8px 12px;overflow:hidden}
 .card-hdr{padding:14px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:flex-start}
-.card-body{display:none;padding:4px 16px 14px;border-top:1px solid var(--border);font-size:13px;color:var(--dim);flex-direction:column;gap:8px}
+.card-body{display:none;padding:4px 16px 14px;border-top:1px solid var(--border);font-size:calc(13px * var(--fscale, 1));color:var(--dim);flex-direction:column;gap:8px}
 .card-body.open{display:flex}
-.card-title{font-size:15px;font-weight:700}
-.card-sub{font-size:12px;color:var(--dim);margin-top:3px}
+.card-title{font-size:calc(15px * var(--fscale, 1));font-weight:700}
+.card-sub{font-size:calc(12px * var(--fscale, 1));color:var(--dim);margin-top:3px}
 .pill{display:inline-flex;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:700;margin:2px}
 .pill-v{background:rgba(30,136,229,.2);color:#90CAF9}
 .pill-vis{background:rgba(126,87,194,.2);color:#CE93D8}
@@ -78,8 +78,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .pill-w{background:rgba(244,67,54,.2);color:#EF9A9A}
 /* Analytics */
 .sec-title{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;padding:16px 16px 8px;font-weight:700}
-.atbl{width:100%;border-collapse:collapse;font-size:13px}
-.atbl th{text-align:left;padding:8px 10px;color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);font-weight:600}
+.atbl{width:100%;border-collapse:collapse;font-size:calc(13px * var(--fscale, 1))}
+.atbl th{text-align:left;padding:8px 10px;color:var(--dim);font-size:calc(11px * var(--fscale, 1));text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);font-weight:600}
 .atbl td{padding:10px;border-bottom:1px solid rgba(38,53,69,.5)}
 .atbl tr:last-child td{border:none}
 .num{text-align:right;font-variant-numeric:tabular-nums}
@@ -92,24 +92,24 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .toggle.on{background:var(--primary)}
 .toggle::after{content:'';position:absolute;width:20px;height:20px;background:#fff;border-radius:50%;top:3px;left:3px;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.4)}
 .toggle.on::after{transform:translateX(18px)}
-.btn-set{background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:13px 16px;font-size:15px;font-weight:600;cursor:pointer;width:100%;text-align:left;font-family:var(--ff);display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;touch-action:manipulation}
+.btn-set{background:var(--s2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:13px 16px;font-size:calc(15px * var(--fscale, 1));font-weight:600;cursor:pointer;width:100%;text-align:left;font-family:var(--ff);display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;touch-action:manipulation}
 /* Modals */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:200;display:flex;align-items:flex-end;justify-content:center}
 .overlay.hidden{display:none}
 .sheet{background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;padding:24px 20px;padding-bottom:calc(28px + env(safe-area-inset-bottom))}
-.sheet-title{font-size:20px;font-weight:700;color:var(--primary);margin-bottom:20px}
+.sheet-title{font-size:calc(20px * var(--fscale, 1));font-weight:700;color:var(--primary);margin-bottom:20px}
 .fg{margin-bottom:14px}
-.lbl{font-size:13px;color:var(--dim);margin-bottom:6px;display:block;font-weight:500}
-.fc{width:100%;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:11px 13px;color:var(--text);font-size:15px;font-family:var(--ff);appearance:none}
+.lbl{font-size:calc(13px * var(--fscale, 1));color:var(--dim);margin-bottom:6px;display:block;font-weight:500}
+.fc{width:100%;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:11px 13px;color:var(--text);font-size:calc(15px * var(--fscale, 1));font-family:var(--ff);appearance:none}
 .fc:focus{outline:none;border-color:var(--primary)}
 textarea.fc{resize:vertical;min-height:72px}
 select.fc{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2390A4AE'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .chip{background:var(--s2);border:1px solid var(--border);border-radius:16px;padding:5px 12px;font-size:13px;cursor:pointer;transition:background .15s;touch-action:manipulation}
 .chip.sel{background:var(--primary);color:#0F1923;border-color:var(--primary)}
-.btn-p{width:100%;background:var(--primary);color:#0F1923;border:none;border-radius:10px;padding:15px;font-size:15px;font-weight:700;cursor:pointer;margin-top:10px;font-family:var(--ff);touch-action:manipulation}
-.btn-s{width:100%;background:var(--s2);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:13px;font-size:15px;font-weight:600;cursor:pointer;margin-top:8px;font-family:var(--ff);touch-action:manipulation}
-.btn-d{width:100%;background:rgba(244,67,54,.12);color:var(--wrong);border:1px solid rgba(244,67,54,.35);border-radius:10px;padding:13px;font-size:15px;font-weight:600;cursor:pointer;margin-top:8px;font-family:var(--ff);touch-action:manipulation}
+.btn-p{width:100%;background:var(--primary);color:#0F1923;border:none;border-radius:10px;padding:15px;font-size:calc(15px * var(--fscale, 1));font-weight:700;cursor:pointer;margin-top:10px;font-family:var(--ff);touch-action:manipulation}
+.btn-s{width:100%;background:var(--s2);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:13px;font-size:calc(15px * var(--fscale, 1));font-weight:600;cursor:pointer;margin-top:8px;font-family:var(--ff);touch-action:manipulation}
+.btn-d{width:100%;background:rgba(244,67,54,.12);color:var(--wrong);border:1px solid rgba(244,67,54,.35);border-radius:10px;padding:13px;font-size:calc(15px * var(--fscale, 1));font-weight:600;cursor:pointer;margin-top:8px;font-family:var(--ff);touch-action:manipulation}
 .sum-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
 .sum-cell{background:var(--s2);border-radius:10px;padding:12px;text-align:center}
 .sum-val{font-size:28px;font-weight:800}
@@ -303,6 +303,37 @@ select.fc{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
       <textarea class="fc" id="sl-subtopics" style="min-height:100px" placeholder="Math=Addition,Subtraction&#10;Life Skills=Hygiene,Cooking"></textarea></div>
     <button class="btn-p" onclick="saveSourceList()">Save</button>
     <button class="btn-s" onclick="closeModal('modal-sources')">Cancel</button>
+  </div>
+</div>
+
+<!-- Modal: About & Manual -->
+<div id="modal-about" class="overlay hidden">
+  <div class="sheet">
+    <div class="sheet-title" style="margin-bottom:12px">ℹ️ About & User Manual</div>
+    <div style="overflow-y:auto;max-height:60vh;font-size:13px;color:var(--dim);line-height:1.6;margin-bottom:16px;padding-right:8px">
+      <b style="font-size:15px;color:var(--primary);display:block;margin-top:10px">1. First-Time Setup</b>
+      <b>iPhone (Safari):</b> Open URL → Share → Add to Home Screen.<br>
+      <b>Android (Chrome):</b> Open URL → ⋮ → Add to Home Screen.<br>
+
+      <b style="font-size:15px;color:var(--primary);display:block;margin-top:14px">2. Configuration</b>
+      Go to Settings ⚙️<br>
+      - <b>Configure Lists:</b> Add Aide Name, Students, Subjects, etc.<br>
+      - <b>Student Profiles:</b> Link a Student to a Subject and set IEP prompt limits.<br>
+
+      <b style="font-size:15px;color:var(--primary);display:block;margin-top:14px">3. Tracking</b>
+      Tap <b>Start Class</b>.<br>
+      Tap the RIGHT half of a band (+) to log an event.<br>
+      Tap the LEFT half of a band (−) to undo an event.<br>
+
+      <b style="font-size:15px;color:var(--primary);display:block;margin-top:14px">4. History & Analytics</b>
+      - <b>History:</b> Review past classes and export PDF reports.<br>
+      - <b>Analytics:</b> Filter by student or subject, view cumulative stats, and export CSV data.<br>
+
+      <b style="font-size:15px;color:var(--primary);display:block;margin-top:14px">5. Privacy</b>
+      100% Offline and FERPA Ready. Use "Clear All Data" in Settings to wipe everything.<br><br>
+      <i>Support: gaunt.apps@gmail.com</i>
+    </div>
+    <button class="btn-p" onclick="closeModal('modal-about')" style="margin-top:0">Close</button>
   </div>
 </div>
 

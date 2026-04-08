@@ -15,6 +15,7 @@ let audioCtx = null;
 
 // ── Init ──
 async function initApp() {
+  document.documentElement.style.setProperty('--fscale', cfg('fscale', 1));
   await getDB();
   setupBandListeners();
   renderSettings();
@@ -370,6 +371,15 @@ async function renderHistory() {
             Q${q}: V:${d.V} · Vis:${d.Vis} · G:${d.G} &rarr; ${d.C>0?'\u2705':'\u274C'}
         </div>`;
     });
+    let lastT=s.startTime; let distSum=0; let distCount=0;
+    const sortedEv = [...events].sort((a,b)=>a.timestamp-b.timestamp);
+    sortedEv.forEach(e=>{
+        distSum+=(e.timestamp-lastT)/1000;
+        distCount++;
+        lastT=e.timestamp;
+    });
+    const avgDist = distCount>0 ? (distSum/distCount).toFixed(1)+'s' : '—';
+
     card.innerHTML=`
       <div class="card-hdr" onclick="this.nextElementSibling.classList.toggle('open')">
         <div>
@@ -387,6 +397,7 @@ async function renderHistory() {
       </div>
       <div class="card-body">
         <div><strong>Teacher:</strong> ${s.teacherName||'—'} &nbsp; <strong>Room:</strong> ${s.classroom||'—'}</div>
+        <div><strong>Avg Distance Between Prompts:</strong> ${avgDist}</div>
         ${s.iepGoalNotes?`<div><strong>IEP Goal:</strong> ${s.iepGoalNotes}</div>`:''}
         ${s.sessionGoals?`<div><strong>Session Goals:</strong> ${s.sessionGoals}</div>`:''}
         ${s.notes?`<div><strong>Notes:</strong> ${s.notes}</div>`:''}
@@ -541,24 +552,31 @@ function buildCumulativeTable(sessions, events) {
   const byStudent={};
   sessions.forEach(s=>{
     const k=`${s.studentName}||${s.subject}`;
-    if(!byStudent[k]) byStudent[k]={name:s.studentName,subject:s.subject,V:0,Vis:0,G:0,C:0,W:0,n:0};
+    if(!byStudent[k]) byStudent[k]={name:s.studentName,subject:s.subject,V:0,Vis:0,G:0,C:0,W:0,n:0,distSum:0,distCount:0};
     byStudent[k].n++;
-    events.filter(e=>e.sessionId===s.id).forEach(e=>{
+    let lastT = s.startTime;
+    events.filter(e=>e.sessionId===s.id).sort((a,b)=>a.timestamp-b.timestamp).forEach(e=>{
       if(e.eventType==='VERBAL') byStudent[k].V++;
       else if(e.eventType==='VISUAL') byStudent[k].Vis++;
       else if(e.eventType==='GESTURAL') byStudent[k].G++;
       else if(e.eventType==='CORRECT') byStudent[k].C++;
       else if(e.eventType==='INCORRECT') byStudent[k].W++;
+      byStudent[k].distSum += (e.timestamp - lastT)/1000;
+      byStudent[k].distCount++;
+      lastT = e.timestamp;
     });
   });
-  const rows=Object.values(byStudent).map(r=>`<tr>
+  const rows=Object.values(byStudent).map(r=>{
+    const avgDist = r.distCount>0 ? (r.distSum/r.distCount).toFixed(1)+'s' : '—';
+    return `<tr>
     <td>${r.name}</td><td>${r.subject}</td>
     <td class="num">${r.V}</td><td class="num">${r.Vis}</td><td class="num">${r.G}</td>
     <td class="num" style="color:var(--correct)">${r.C}</td>
     <td class="num" style="color:var(--wrong)">${r.W}</td>
+    <td class="num">${avgDist}</td>
     <td class="num" style="color:var(--dim)">${r.n}</td>
-  </tr>`).join('');
-  return `<table class="atbl"><thead><tr><th>Student</th><th>Subject</th><th class="num">Verbal</th><th class="num">Visual</th><th class="num">Gestural</th><th class="num">✅</th><th class="num">❌</th><th class="num">Sessions</th></tr></thead><tbody>${rows}</tbody></table>`;
+  </tr>`}).join('');
+  return `<table class="atbl"><thead><tr><th>Student</th><th>Subject</th><th class="num">Verbal</th><th class="num">Visual</th><th class="num">Gestural</th><th class="num">✅</th><th class="num">❌</th><th class="num">Avg Dist</th><th class="num">Sessions</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 // ── CSV Export ──
@@ -771,7 +789,10 @@ async function exportSessionPDF(sessionId) {
       }
   }
   const url = URL.createObjectURL(blob);
-  window.open(url, '_blank');
+  const a = document.createElement('a'); 
+  a.href = url; 
+  a.download = filename; 
+  a.click();
 }
 
 // ── Settings ──
@@ -780,6 +801,7 @@ function renderSettings() {
   document.getElementById('settings-body').innerHTML=`
     <div class="set-section">
       <div class="set-title">General</div>
+      <button class="btn-set" onclick="openModal('modal-about')"><span>ℹ️ About & User Manual</span><span>›</span></button>
       <button class="btn-set" onclick="openSourcesModal()"><span>📋 Configure Lists</span><span>›</span></button>
       <button class="btn-set" onclick="openProfilesSection()"><span>👤 Student Profiles</span><span>›</span></button>
     </div>
@@ -792,6 +814,19 @@ function renderSettings() {
       <div class="set-row">
         <div><div style="font-size:15px;font-weight:500">Audio Feedback</div><div style="font-size:12px;color:var(--dim)">Sound pop on every tap</div></div>
         <button class="toggle ${a?'on':''}" id="tog-audio" onclick="toggleSetting('audio','tog-audio')"></button>
+      </div>
+    </div>
+    <div class="set-section">
+      <div class="set-title">Accessibility</div>
+      <div class="set-row" style="flex-direction:column;align-items:stretch">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><div style="font-size:15px;font-weight:500">Text Size</div><div style="font-size:12px;color:var(--dim)">Scale interface typography</div></div>
+          <div style="font-size:15px;font-weight:700" id="fs-lbl">${Math.round(cfg('fscale',1)*100)}%</div>
+        </div>
+        <input type="range" min="1" max="1.45" step="0.15" value="${cfg('fscale',1)}" 
+          style="margin-top:16px;accent-color:var(--primary)" 
+          oninput="document.getElementById('fs-lbl').textContent=Math.round(this.value*100)+'%'; document.documentElement.style.setProperty('--fscale', this.value)"
+          onchange="cfgSet('fscale', Number(this.value));">
       </div>
     </div>
     <div class="set-section">
