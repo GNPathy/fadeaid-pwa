@@ -43,16 +43,19 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .resp-half{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;user-select:none;touch-action:manipulation}
 #rh-wrong{background:rgba(244,67,54,.2)}
 #rh-correct{background:rgba(76,175,80,.2);border-left:1px solid rgba(0,0,0,.2)}
-.band-verbal{background:rgba(30,136,229,.18)}
-.band-visual{background:rgba(126,87,194,.18)}
-.band-gestural{background:rgba(0,137,123,.18)}
+.band-verbal{background:#E1BEE7}
+.band-verbal .band-label, .band-verbal .band-count, .band-verbal .zh{color:#4A148C;text-shadow:none}
+.band-visual{background:#B3E5FC}
+.band-visual .band-label, .band-visual .band-count, .band-visual .zh{color:#01579B;text-shadow:none}
+.band-gestural{background:#F8BBD0}
+.band-gestural .band-label, .band-gestural .band-count, .band-gestural .zh{color:#880E4F;text-shadow:none}
 .band-minus{position:absolute;left:0;top:0;bottom:0;width:45%}
 .band-plus{position:absolute;right:0;top:0;bottom:0;width:55%}
 .band-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;pointer-events:none}
 .band-count{font-size:clamp(44px,11vw,76px);font-weight:800;line-height:1;letter-spacing:-2px}
-.band-label{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;margin-top:4px}
-.zh{position:absolute;top:50%;transform:translateY(-50%);font-size:28px;font-weight:800;color:rgba(255,255,255,.85);pointer-events:none;text-shadow:0 1px 4px rgba(0,0,0,.5)}
-.zh-m{left:12px}.zh-p{right:12px}
+.band-label{font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px}
+.zh{position:absolute;top:50%;transform:translateY(-50%);font-size:36px;font-weight:400;pointer-events:none}
+.zh-m{left:20px}.zh-p{right:20px}
 @keyframes flash{0%,100%{filter:brightness(1)}40%{filter:brightness(2.2)}}
 .flashing{animation:flash .22s ease-out}
 /* Scroll */
@@ -153,22 +156,22 @@ select.fc{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
       </div>
       <div id="band-container">
         <div class="band" id="band-response">
-          <div class="resp-half" id="rh-wrong">
-            <div class="band-count" id="cnt-incorrect" style="color:var(--wrong)">0</div>
-            <div class="band-label" style="color:rgba(244,67,54,.65)">Incorrect</div>
-            <div style="font-size:18px;font-weight:800;color:rgba(255,255,255,.7);margin-top:6px;display:flex;justify-content:space-between;width:75%;max-width:140px;"><span>＋</span><span>＿</span></div>
+          <div class="resp-half" id="rh-wrong" style="background:#F44336">
+            <div class="band-label" style="color:#ffffff;letter-spacing:1px;font-size:13px">Incorrect</div>
+            <div class="band-count" id="cnt-incorrect" style="color:#ffffff">0</div>
+            <div style="font-size:32px;font-weight:400;color:#ffffff;margin-top:2px;display:flex;justify-content:space-between;width:85%;max-width:180px;"><span>−</span><span>＋</span></div>
           </div>
-          <div class="resp-half" id="rh-correct">
-            <div class="band-count" id="cnt-correct" style="color:var(--correct)">0</div>
-            <div class="band-label" style="color:rgba(76,175,80,.65)">Correct</div>
-            <div style="font-size:18px;font-weight:800;color:rgba(255,255,255,.7);margin-top:6px;display:flex;justify-content:space-between;width:75%;max-width:140px;"><span>＋</span><span>＿</span></div>
+          <div class="resp-half" id="rh-correct" style="background:#4CAF50;border-left:1px solid rgba(0,0,0,.2)">
+            <div class="band-label" style="color:#ffffff;letter-spacing:1px;font-size:13px">Correct</div>
+            <div class="band-count" id="cnt-correct" style="color:#ffffff">0</div>
+            <div style="font-size:32px;font-weight:400;color:#ffffff;margin-top:2px;display:flex;justify-content:space-between;width:85%;max-width:180px;"><span>−</span><span>＋</span></div>
           </div>
         </div>
         <div class="band band-verbal" id="band-verbal">
           <div class="zh zh-m">−</div>
           <div class="band-center">
+            <div class="band-label">Verbal</div>
             <div class="band-count" id="cnt-verbal">0</div>
-            <div class="band-label" style="color:rgba(30,136,229,.65)">Verbal</div>
           </div>
           <div class="zh zh-p">+</div>
           <div class="band-minus"></div><div class="band-plus"></div>
@@ -176,8 +179,8 @@ select.fc{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
         <div class="band band-visual" id="band-visual">
           <div class="zh zh-m">−</div>
           <div class="band-center">
+            <div class="band-label">Visual</div>
             <div class="band-count" id="cnt-visual">0</div>
-            <div class="band-label" style="color:rgba(126,87,194,.65)">Visual</div>
           </div>
           <div class="zh zh-p">+</div>
           <div class="band-minus"></div><div class="band-plus"></div>
@@ -185,8 +188,8 @@ select.fc{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.o
         <div class="band band-gestural" id="band-gestural">
           <div class="zh zh-m">−</div>
           <div class="band-center">
+            <div class="band-label">Gestural</div>
             <div class="band-count" id="cnt-gestural">0</div>
-            <div class="band-label" style="color:rgba(0,137,123,.65)">Gestural</div>
           </div>
           <div class="zh zh-p">+</div>
           <div class="band-minus"></div><div class="band-plus"></div>
